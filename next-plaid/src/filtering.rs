@@ -1937,4 +1937,48 @@ mod tests {
         assert_eq!(result, 1);
         assert_eq!(count(path).unwrap(), 2);
     }
+
+    #[test]
+    fn test_create_with_mixed_empty_and_non_empty_metadata() {
+        let dir = setup_test_dir();
+        let path = dir.path().to_str().unwrap();
+
+        // Mix of objects with keys and empty objects
+        let metadata = vec![
+            json!({"name": "Alice", "score": 95}),
+            json!({}),
+            json!({"name": "Charlie"}),
+        ];
+        let doc_ids: Vec<i64> = vec![0, 1, 2];
+
+        let result = create(path, &metadata, &doc_ids).unwrap();
+        assert_eq!(result, 3);
+        assert_eq!(count(path).unwrap(), 3);
+
+        // The empty object should have NULLs; query for non-null name should return 2
+        let with_name = get(path, Some("name IS NOT NULL"), &[], None).unwrap();
+        assert_eq!(with_name.len(), 2);
+    }
+
+    #[test]
+    fn test_update_with_mixed_empty_and_non_empty_metadata() {
+        let dir = setup_test_dir();
+        let path = dir.path().to_str().unwrap();
+
+        // Create with a keyed object
+        let metadata = vec![json!({"name": "Alice"})];
+        let doc_ids: Vec<i64> = vec![0];
+        create(path, &metadata, &doc_ids).unwrap();
+
+        // Update with an empty object — should insert with NULL for existing columns
+        let new_metadata = vec![json!({})];
+        let new_doc_ids: Vec<i64> = vec![1];
+        let result = update(path, &new_metadata, &new_doc_ids).unwrap();
+        assert_eq!(result, 1);
+        assert_eq!(count(path).unwrap(), 2);
+
+        // Only the first row has a name
+        let with_name = get(path, Some("name IS NOT NULL"), &[], None).unwrap();
+        assert_eq!(with_name.len(), 1);
+    }
 }
