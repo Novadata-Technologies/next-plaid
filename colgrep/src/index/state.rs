@@ -188,6 +188,32 @@ mod tests {
     }
 
     #[test]
+    fn test_ignored_files_persisted_to_disk() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let mut state = IndexState::default();
+        state
+            .ignored_files
+            .insert(PathBuf::from("bad/binary_file.hpp"));
+        state
+            .ignored_files
+            .insert(PathBuf::from("vendor/nonascii.py"));
+
+        // Save to disk
+        state.save(temp_dir.path()).unwrap();
+
+        // Load from disk and verify ignored files survived the round-trip
+        let loaded = IndexState::load(temp_dir.path()).unwrap();
+        assert_eq!(loaded.ignored_files.len(), 2);
+        assert!(loaded
+            .ignored_files
+            .contains(&PathBuf::from("bad/binary_file.hpp")));
+        assert!(loaded
+            .ignored_files
+            .contains(&PathBuf::from("vendor/nonascii.py")));
+    }
+
+    #[test]
     fn test_hash_file() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
