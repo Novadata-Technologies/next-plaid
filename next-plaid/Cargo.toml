@@ -30,17 +30,18 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ndarray-npy = "0.9.1"
-fastkmeans-rs = "1.0.1"
+fastkmeans-rs = "1.0.2"
 memmap2 = "0.9"
 fs2 = "0.4"
 half = "2.4"
 byteorder = "1.5"
 rusqlite = { version = "0.38", features = ["bundled", "functions"] }
 regex = "1.11"
-cudarc = { version = "0.12", features = [
+cudarc = { version = "0.19.3", default-features = false, features = [
     "cuda-version-from-build-system",
     "cublas",
-    "dynamic-linking",
+    "dynamic-loading",
+    "nvrtc",
 ], optional = true }
 
 [dev-dependencies]
