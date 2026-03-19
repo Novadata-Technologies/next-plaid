@@ -1,5 +1,5 @@
+use ::next_plaid::{filtering, IndexConfig, MmapIndex};
 use ndarray::Array2;
-use next_plaid::{filtering, IndexConfig, MmapIndex};
 use numpy::PyReadonlyArray2;
 use pyo3::prelude::*;
 use pythonize::depythonize;
@@ -70,8 +70,8 @@ fn create_metadata(
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
 
-#[pymodule]
-fn next_plaid(m: &Bound<'_, PyModule>) -> PyResult<()> {
+#[pymodule(name = "next_plaid")]
+fn next_plaid_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_index, m)?)?;
     m.add_function(wrap_pyfunction!(create_metadata, m)?)?;
     Ok(())
