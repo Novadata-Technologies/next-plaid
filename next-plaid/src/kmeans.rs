@@ -142,10 +142,16 @@ pub fn compute_centroids(
             eprintln!("[next-plaid] {}, falling back to CPU", e);
             compute_centroids_cpu(embeddings, config)
         }
-        Err(_) => {
+        Err(panic_info) => {
             crate::cuda::mark_cuda_broken();
+            let panic_msg = panic_info
+                .downcast_ref::<String>()
+                .map(|s| s.as_str())
+                .or_else(|| panic_info.downcast_ref::<&str>().copied())
+                .unwrap_or("unknown panic");
             eprintln!(
-                "[next-plaid] CUDA K-means panicked (invalid/stub library?), falling back to CPU"
+                "[next-plaid] CUDA K-means panicked: {}, falling back to CPU",
+                panic_msg
             );
             compute_centroids_cpu(embeddings, config)
         }
@@ -353,25 +359,36 @@ pub fn compute_kmeans(
         let cuda_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             match FastKMeansCuda::with_config(kmeans_config.clone()) {
                 Ok(mut kmeans) => match kmeans.train(&samples_view) {
-                    Ok(()) => kmeans.centroids().map(|c| c.to_owned()),
-                    Err(_) => None,
+                    Ok(()) => match kmeans.centroids() {
+                        Some(c) => Ok(c.to_owned()),
+                        None => Err("K-means produced no centroids after training".to_string()),
+                    },
+                    Err(e) => Err(format!("CUDA K-means training failed: {}", e)),
                 },
-                Err(_) => None,
+                Err(e) => Err(format!("CUDA K-means init failed: {}", e)),
             }
         }));
 
         match cuda_result {
-            Ok(Some(c)) => c,
-            Ok(None) | Err(_) => {
-                // Mark CUDA as broken to prevent subsequent attempts
+            Ok(Ok(c)) => c,
+            Ok(Err(reason)) => {
                 crate::cuda::mark_cuda_broken();
-                if cuda_result.is_err() {
-                    eprintln!("[next-plaid] CUDA K-means panicked (invalid/stub library?), falling back to CPU");
-                } else {
-                    eprintln!("[next-plaid] CUDA K-means failed, falling back to CPU");
-                }
-                // Use kmeans_double_chunked directly to avoid FastKMeans::train() which
-                // tries CUDA when the cuda feature is enabled
+                eprintln!("[next-plaid] {}, falling back to CPU", reason);
+                let result = kmeans_double_chunked(&samples_tensor.view(), &kmeans_config)
+                    .map_err(|e| Error::IndexCreation(format!("K-means training failed: {}", e)))?;
+                result.centroids
+            }
+            Err(panic_info) => {
+                crate::cuda::mark_cuda_broken();
+                let panic_msg = panic_info
+                    .downcast_ref::<String>()
+                    .map(|s| s.as_str())
+                    .or_else(|| panic_info.downcast_ref::<&str>().copied())
+                    .unwrap_or("unknown panic");
+                eprintln!(
+                    "[next-plaid] CUDA K-means panicked: {}, falling back to CPU",
+                    panic_msg
+                );
                 let result = kmeans_double_chunked(&samples_tensor.view(), &kmeans_config)
                     .map_err(|e| Error::IndexCreation(format!("K-means training failed: {}", e)))?;
                 result.centroids
