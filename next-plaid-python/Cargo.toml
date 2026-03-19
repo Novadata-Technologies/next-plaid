@@ -1,0 +1,27 @@
+[package]
+name = "next-plaid-python"
+version.workspace = true
+edition.workspace = true
+description = "Python bindings for next-plaid multi-vector search"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "next_plaid"
+crate-type = ["cdylib"]
+
+[dependencies]
+next-plaid = { path = "../next-plaid" }
+pyo3 = { version = "0.23", features = ["extension-module"] }
+numpy = "0.23"
+ndarray = { workspace = true }
+serde_json = { workspace = true }
+pythonize = "0.23"
+
+[features]
+default = []
+cuda = ["next-plaid/cuda"]
+openblas = ["next-plaid/openblas"]
+accelerate = ["next-plaid/accelerate"]
+mkl = ["next-plaid/mkl"]
